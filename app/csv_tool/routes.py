@@ -1,8 +1,9 @@
+import numpy as np
 from fastapi import APIRouter, Depends
 from fastapi import UploadFile
 from fastapi import File
 from fastapi import HTTPException
-from sqlalchemy import update
+from sqlalchemy import update, insert, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.csv_tool.validation import is_csv_valid
@@ -13,13 +14,18 @@ import os
 from app.database import get_async_session
 from app.user.config import fastapi_users
 from app.user.models import User
-from models.models import user
+from models.models import user, booking
+
+from app.booking.utils import booking_date
+
+import pandas as pd
 
 current_user = fastapi_users.current_user()
 
 csv_files_route = APIRouter(
     prefix='/csv_files',
-    tags=['CSV Files Tools']
+    tags=['CSV Files Tools'],
+    dependencies=[Depends(current_user)]
 )
 
 
@@ -130,12 +136,39 @@ async def set_file_for_analysis(filename: str,
         try:
             stmt = update(user).where(user.c.id == _user.id).values(csvfile=filename)
             await session.execute(stmt)
+
+            stmt = delete(booking)
+            await session.execute(stmt)
+
+            new_df = pd.DataFrame()
+
+            df = pd.read_csv('demo/hotel_booking_data.csv')
+
+            new_df['booking_date'] = np.vectorize(booking_date)(df['arrival_date_day_of_month'],
+                                                                df['arrival_date_month'],
+                                                                df['arrival_date_year'],
+                                                                df['lead_time'])
+            new_df['length_of_stay'] = df['stays_in_week_nights'] + df['stays_in_weekend_nights']
+            new_df['guest_name'] = df['name']
+            new_df['daily_rate'] = df['adr']
+
+            result = new_df.to_dict()
+
+            for i in range(len(new_df)):
+                stmt = insert(booking).values(booking_date=result['booking_date'][i],
+                                               length_of_stay=result['length_of_stay'][i],
+                                               guest_name=result['guest_name'][i],
+                                               daily_rate=result['daily_rate'][i])
+                await session.execute(stmt)
+
             await session.commit()
+
             return {"status": "200 - OK",
-                    "message": f"File {filename} has been set as file for analysing"}
-        except Exception:
+                    "message": f"File {filename} has been set as file for analysing",
+                    "db": f'Table "booking" in database has been filled'}
+        except Exception as e:
             raise HTTPException(status_code=400,
-                                detail="Something is going wrong. Try again")
+                                detail="Something is going wrong. Try again" + str(e))
 
     else:
         raise HTTPException(status_code=404,
@@ -147,7 +180,6 @@ async def set_file_for_analysis(filename: str,
     summary='Get current csv file to be set for analysing',
     description='This API provides to get current csv file which be set for analysing',
 )
-async def get_current_file(_user: User = Depends(current_user),
-                           session: AsyncSession = Depends(get_async_session)):
+async def get_current_file(_user: User = Depends(current_user)):
     return {"status": "200 - OK",
             "file": _user.csvfile}

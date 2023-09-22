@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Column, Table, Integer, String, Boolean, ForeignKey
+from sqlalchemy import MetaData, Column, Table, Integer, String, Boolean, DateTime, Float
 
 metadata = MetaData()
 
@@ -13,4 +13,14 @@ user = Table(
     Column("is_active", Boolean, default=True, nullable=False),
     Column("is_superuser", Boolean, default=False, nullable=False),
     Column("is_verified", Boolean, default=False, nullable=False),
+)
+
+booking = Table(
+    "booking",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("booking_date", DateTime),
+    Column("length_of_stay", Integer),
+    Column("guest_name", String(length=1024)),
+    Column("daily_rate", Float)
 )
