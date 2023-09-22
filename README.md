@@ -8,7 +8,8 @@ How to start:
 ```
 pip install -r requirements.txt
 ```
-2. Use alembic for creating database and tables
+2. Use alembic for creating database and tables (Now it's not nessesary
+due to existing hotel.db.)
 ```
 alembic init alembic
 alembic revision --autogenerate -m "Create database"
@@ -18,10 +19,22 @@ alembic upgrade head
 ```
 uvicorn main:app
 ```
-4. Run "setup.py" for creating user "root" and fill table in db with demo values.
+4. Run "setup.py" for creating user "root" (Not nessesary. Only in case if you create a new database with alembic)
 
 5. Open http://localhost:8000/docs in your browser and check API
 
+
+### Or use Docker:
+
+Create container:
+```
+docker build . -t neo_hotel
+```
+Run Container:
+```
+docker run -d -p 8000:8000 neo_hotel
+```
+Then, Open http://localhost:8000/docs in your browser and check API
 
 
 ## Structure of project
