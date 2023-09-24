@@ -56,3 +56,30 @@ async def dataframe_to_sql(df: pd.DataFrame, session: AsyncSession = None):
                                       daily_rate=result['daily_rate'][i])
         await session.execute(stmt)
         await session.commit()
+
+
+def analysis_result(result_resort: pd.DataFrame, result_city: pd.DataFrame) -> dict:
+    result_resort.columns = ['year', 'month', 'total_revenue']
+    result_city.columns = ['year', 'month', 'total_revenue']
+
+    result_resort = result_resort.to_dict()
+    result_city = result_city.to_dict()
+
+    result_resort_dict = dict()
+    result_city_dict = dict()
+
+    for k, v in result_resort['year'].items():
+        result_resort_dict[k] = {'year': result_resort['year'][k]}
+        result_resort_dict[k].update({'month': result_resort['month'][k]})
+        result_resort_dict[k].update({'total_revenue': result_resort['total_revenue'][k]})
+
+    for k, v in result_city['year'].items():
+        result_city_dict[k] = {'year': result_city['year'][k]}
+        result_city_dict[k].update({'month': result_city['month'][k]})
+        result_city_dict[k].update({'total_revenue': result_city['total_revenue'][k]})
+
+    result = dict()
+    result['City Hotel'] = result_city_dict
+    result['Resort Hotel'] = result_resort_dict
+
+    return result

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from fastapi import UploadFile
 from fastapi import File
 from fastapi import HTTPException
+from fastapi import status
 from sqlalchemy import update, insert, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,7 +33,8 @@ csv_files_route = APIRouter(
 @csv_files_route.post(
     '/upload',
     summary='Upload and save csv file',
-    description='This API provides to upload and save csv file on server'
+    description='This API provides to upload and save csv file on server',
+    status_code=status.HTTP_201_CREATED
 )
 async def upload_and_save_csv(csv_file: UploadFile = File(...)):
     create_temporary()
@@ -58,7 +60,8 @@ async def upload_and_save_csv(csv_file: UploadFile = File(...)):
 @csv_files_route.get(
     '/list',
     summary='List of all uploaded csv files',
-    description='This API provides to get list of all uploaded and saved csv files on server'
+    description='This API provides to get list of all uploaded and saved csv files on server',
+    status_code=status.HTTP_200_OK
 )
 async def get_all_csv():
     if not os.path.exists('temporary'):
@@ -80,14 +83,13 @@ async def get_all_csv():
 @csv_files_route.delete(
     '/delete/all',
     summary='Delete all uploaded csv files',
-    description='This API provides to delete all uploaded and saved csv files on server'
+    description='This API provides to delete all uploaded and saved csv files on server',
+    status_code=status.HTTP_204_NO_CONTENT
 )
 async def delete_all_uploaded_files():
     if not os.path.exists('temporary'):
-        return {
-            "status": "400 - No files found",
-            "Message": "You have no any uploaded files"
-        }
+        HTTPException(status_code=404,
+                      detail="You have no any uploaded files")
     count = 0
     try:
         for root, dirs, files in os.walk("temporary"):
@@ -96,10 +98,7 @@ async def delete_all_uploaded_files():
                     os.remove("temporary/" + filename)
                     count += 1
 
-        return {
-            "status": "200 - OK",
-            "message": f"All {count} file(s) have been deleted"
-        }
+        return {"message": f"All {count} file(s) have been deleted"}
     except Exception:
         raise HTTPException(status_code=500,
                             detail="Can't do this operation. Ask your system administrator")
@@ -109,15 +108,13 @@ async def delete_all_uploaded_files():
     '/delete/{filename}',
     summary='Delete uploaded csv files named as \'filename\'',
     description='This API provides to delete uploaded and saved csv file with name "filename" on server',
+    status_code=status.HTTP_204_NO_CONTENT
 )
 async def delete_csv_file(filename: str):
     filename = filename.replace('/', '')  # Little basic safety
     try:
         os.remove("temporary/" + filename)
-        return {
-            "status": "200 - OK",
-            "message": f"File {filename}  has been deleted"
-        }
+        return {"message": f"File {filename}  has been deleted"}
     except Exception:
         raise HTTPException(status_code=404,
                             detail="File not found!")
@@ -127,6 +124,7 @@ async def delete_csv_file(filename: str):
     '/set/{filename}',
     summary='Set uploaded csv as file for analysis',
     description='This API provides to set uploaded csv file for analysing (ability to use /bookings... endpoints)',
+    status_code=status.HTTP_201_CREATED
 )
 async def set_file_for_analysis(filename: str,
                                 _user: User = Depends(current_user),
@@ -163,12 +161,11 @@ async def set_file_for_analysis(filename: str,
 
             await session.commit()
 
-            return {"status": "200 - OK",
-                    "message": f"File {filename} has been set as file for analysing",
+            return {"message": f"File {filename} has been set as file for analysing",
                     "db": f'Table "booking" in database has been filled'}
-        except Exception as e:
+        except Exception:
             raise HTTPException(status_code=400,
-                                detail="Something is going wrong. Try again" + str(e))
+                                detail="Something is going wrong. Try again")
 
     else:
         raise HTTPException(status_code=404,
@@ -179,7 +176,7 @@ async def set_file_for_analysis(filename: str,
     '/get_current',
     summary='Get current csv file to be set for analysing',
     description='This API provides to get current csv file which be set for analysing',
+    status_code=status.HTTP_200_OK
 )
 async def get_current_file(_user: User = Depends(current_user)):
-    return {"status": "200 - OK",
-            "file": _user.csvfile}
+    return {"file": _user.csvfile}

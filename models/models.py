@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Column, Table, Integer, String, Boolean, DateTime, Float
+from sqlalchemy import MetaData, Column, Table, Integer, String, Boolean, Float, Date
 
 metadata = MetaData()
 
@@ -19,7 +19,7 @@ booking = Table(
     "booking",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("booking_date", DateTime),
+    Column("booking_date", Date),
     Column("length_of_stay", Integer),
     Column("guest_name", String(length=1024)),
     Column("daily_rate", Float)
