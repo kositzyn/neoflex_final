@@ -205,13 +205,17 @@ def get_analysis(is_canceled: bool = Query(default=False),
                      description='Retrieve bookings based on the provided "nationality" as parameter. Use pagination '
                                  'for answer. It start from "start" position to "start+step"',
                      status_code=status.HTTP_200_OK)
-def get_by_nationality(nationality: str,
+def get_by_nationality(nationality: str = Query(min_length=3, max_length=3),
                        start: int = Query(default=0, ge=0),
                        step: int = Query(default=5, gt=0),
                        _user: User = Depends(current_user)):
     df = get_dataframe(_user.csvfile)
 
-    result = df[df['country'] == nationality].iloc[start:(start + step)]
+    if nationality.upper() not in df['country'].dropna().unique():
+        raise HTTPException(status_code=404,
+                            detail=f'Country {nationality} is absent in dataset.')
+
+    result = df[df['country'] == nationality.upper()].iloc[start:(start + step)]
 
     result_dict = result.to_dict()
 

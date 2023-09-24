@@ -38,13 +38,15 @@ csv_files_route = APIRouter(
 )
 async def upload_and_save_csv(csv_file: UploadFile = File(...)):
     create_temporary()
-    if not is_csv_valid(csv_file.file.readline()):
+    first_line = csv_file.file.readline()
+    if not is_csv_valid(first_line):
         raise HTTPException(status_code=400,
                             detail="File haven't validated. Try again")
 
     try:
         contents = await csv_file.read()
         with open('temporary/' + csv_file.filename, "wb") as file:
+            file.write(first_line)
             file.write(contents)
     except Exception:
         raise HTTPException(status_code=400,
@@ -154,9 +156,9 @@ async def set_file_for_analysis(filename: str,
 
             for i in range(len(new_df)):
                 stmt = insert(booking).values(booking_date=result['booking_date'][i],
-                                               length_of_stay=result['length_of_stay'][i],
-                                               guest_name=result['guest_name'][i],
-                                               daily_rate=result['daily_rate'][i])
+                                              length_of_stay=result['length_of_stay'][i],
+                                              guest_name=result['guest_name'][i],
+                                              daily_rate=result['daily_rate'][i])
                 await session.execute(stmt)
 
             await session.commit()
