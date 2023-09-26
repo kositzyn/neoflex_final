@@ -75,11 +75,9 @@ async def get_all_csv():
             for filename in files:
                 if filename != '.gitignore':
                     uploaded_files_lst.append(filename)
-        return {
-            "status": "200 - OK",
-            "Message": f"You have {len(uploaded_files_lst)} files",
-            "files": uploaded_files_lst
-        }
+        return {"Message": f"You have {len(uploaded_files_lst)} files",
+                "files": uploaded_files_lst
+                }
 
 
 @csv_files_route.delete(

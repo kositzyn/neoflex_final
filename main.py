@@ -1,10 +1,14 @@
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import FastAPI, Depends
 
 from app.csv_tool.routes import csv_files_route
 from app.booking.routes import bookings_routes
 from app.user.config import auth_backend
 from app.user.config import fastapi_users
+from app.user.models import User
 from app.user.schemas import UserRead, UserCreate
+
 
 app = FastAPI()
 
@@ -22,5 +26,3 @@ app.include_router(
 
 app.include_router(csv_files_route)
 app.include_router(bookings_routes)
-
-

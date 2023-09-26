@@ -1,3 +1,6 @@
+import secrets
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi import Response
 from fastapi import status
@@ -21,12 +24,38 @@ from models.models import booking
 
 from enum import Enum
 
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
 current_user = fastapi_users.current_user()
+
+security = HTTPBasic()
+
+
+def verify_credentials(
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)]
+):
+    current_username_bytes = credentials.username.encode("utf8")
+    correct_username_bytes = b"root"
+    is_correct_username = secrets.compare_digest(
+        current_username_bytes, correct_username_bytes
+    )
+    current_password_bytes = credentials.password.encode("utf8")
+    correct_password_bytes = b"root"
+    is_correct_password = secrets.compare_digest(
+        current_password_bytes, correct_password_bytes
+    )
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return True
+
 
 bookings_routes = APIRouter(
     prefix='/bookings',
-    tags=['Analysis for bookings'],
-    dependencies=[Depends(current_user)],
+    tags=['Analysis for bookings']
 )
 
 
@@ -44,7 +73,8 @@ class Type(Enum):
                      )
 async def get_all(start: int = Query(default=0, ge=0),
                   step: int = Query(default=10, gt=0),
-                  session: AsyncSession = Depends(get_async_session)):
+                  session: AsyncSession = Depends(get_async_session),
+                  _user: User = Depends(current_user)):
     stmt = select(booking).filter(booking.c.id.between(start, start + step))
 
     result = await session.execute(stmt)
@@ -82,7 +112,8 @@ async def get_search(response: Response,
                      length_of_stay: str = '%',
                      guest_name: str = '%',
                      daily_rate: str = '%',
-                     session: AsyncSession = Depends(get_async_session)):
+                     session: AsyncSession = Depends(get_async_session),
+                     _user: User = Depends(current_user)):
     if booking_date == '%' and length_of_stay == '%' and guest_name == '%' and daily_rate == '%':
         response.status_code = 400
         return {"message": "Use at least one parameter"}
@@ -359,8 +390,8 @@ def get_total_guests_by_year(_user: User = Depends(current_user)):
                      description='Retrieves the average daily rate by month for resort hotel bookings. '
                                  'No any parameters',
                      status_code=status.HTTP_200_OK)
-def get_avg_daily_rate_resort(_user: User = Depends(current_user)):
-    df = get_dataframe(_user.csvfile)
+def get_avg_daily_rate_resort(_user: Annotated[str, Depends(verify_credentials)]):
+    df = pd.read_csv('demo/hotel_booking_data.csv')
 
     result = df[df['hotel'] == "Resort Hotel"].groupby(['arrival_date_month'])['adr'].mean().sort_values(
         ascending=False).round(2)
@@ -375,8 +406,8 @@ def get_avg_daily_rate_resort(_user: User = Depends(current_user)):
                      description='Retrieves the most common arrival date day of the week for city hotel bookings. '
                                  'No any parameters',
                      status_code=status.HTTP_200_OK)
-def get_most_common_arrival_day_city(_user: User = Depends(current_user)):
-    df = get_dataframe(_user.csvfile)
+def get_most_common_arrival_day_city(_user: Annotated[str, Depends(verify_credentials)]):
+    df = pd.read_csv('demo/hotel_booking_data.csv')
 
     new_df = df[df['hotel'] == "City Hotel"][['arrival_date_year',
                                               'arrival_date_month',
@@ -399,8 +430,8 @@ def get_most_common_arrival_day_city(_user: User = Depends(current_user)):
                      description='Retrieve the count of bookings grouped by hotel type and meal package. '
                                  'No any parameters',
                      status_code=status.HTTP_200_OK)
-def get_count_by_hotel_meal(_user: User = Depends(current_user)):
-    df = get_dataframe(_user.csvfile)
+def get_count_by_hotel_meal(_user: Annotated[str, Depends(verify_credentials)]):
+    df = pd.read_csv('demo/hotel_booking_data.csv')
 
     result = df.groupby(['hotel', 'meal'])['adr'].count()
 
@@ -423,8 +454,8 @@ def get_count_by_hotel_meal(_user: User = Depends(current_user)):
                      description='Retrieve the total revenue by country for resort hotel bookings. '
                                  'No any parameters',
                      status_code=status.HTTP_200_OK)
-def get_total_revenue_resort_by_country(_user: User = Depends(current_user)):
-    df = get_dataframe(_user.csvfile)
+def get_total_revenue_resort_by_country(_user: Annotated[str, Depends(verify_credentials)]):
+    df = pd.read_csv('demo/hotel_booking_data.csv')
 
     df['total_stay'] = df['stays_in_week_nights'] + df['stays_in_weekend_nights']
     df['total_revenue'] = df['adr'] * df['total_stay']
@@ -440,8 +471,8 @@ def get_total_revenue_resort_by_country(_user: User = Depends(current_user)):
                      description='Retrieve the count of bookings grouped by hotel type and repeated guest status. '
                                  'No any parameters',
                      status_code=status.HTTP_200_OK)
-def get_count_by_hotel_repeated_guest(_user: User = Depends(current_user)):
-    df = get_dataframe(_user.csvfile)
+def get_count_by_hotel_repeated_guest(_user: Annotated[str, Depends(verify_credentials)]):
+    df = pd.read_csv('demo/hotel_booking_data.csv')
 
     result = df.groupby(['hotel', 'is_repeated_guest'])['adr'].count()
 
@@ -464,7 +495,8 @@ def get_count_by_hotel_repeated_guest(_user: User = Depends(current_user)):
                                  'It raises 400 error if index is out of range.',
                      status_code=status.HTTP_200_OK)
 async def get_count_by_hotel_repeated_guest(booking_id: int,
-                                            session: AsyncSession = Depends(get_async_session)):
+                                            session: AsyncSession = Depends(get_async_session),
+                                            _user: User = Depends(current_user)):
     stmt = select(booking).where(booking.c.id == booking_id)
 
     result = await session.execute(stmt)
